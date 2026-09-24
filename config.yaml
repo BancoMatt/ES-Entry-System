@@ -1,0 +1,30 @@
+# ES Entry System - FIXED parameters. Change only with a dated note in notes/decisions.md
+project:
+  start: "2010-06-07"          # first ES bar available (Databento GLBX history starts here)
+  build_end: "2018-12-31"      # in-sample: build + select
+  holdout_start: "2019-01-01"  # out-of-sample: touched ONCE by finalists
+
+capital:
+  contribution_eur: 500
+  frequency: quarterly         # first trading day of each quarter
+  cash_floor_eur: 0
+
+instrument:
+  name: "iShares Core S&P 500 UCITS ETF (IUSA, Euronext Amsterdam)"
+  anchor_price_eur: 67.58
+  anchor_date: "2026-09-22"
+
+sessions:                       # both are tested
+  globex: {tz: "America/New_York", start: "18:00", end: "17:00"}   # prior-day 18:00 -> 17:00
+  euronext: {tz: "Europe/Amsterdam", start: "09:00", end: "17:30"}
+
+costs:
+  fee_pct: 0.0005
+  fee_min_eur: 1.25        # IBKR Tiered; stress test with 3.00 (Fixed)
+  fee_thirdparty_eur: 0.30 # estimate, exchange/clearing on Tiered
+  spread_bps: 5            # estimate for IUSA, check with real quotes
+  dividend_tax: 0.26
+  cash_interest: 0.0            # variant: ECB deposit rate
+
+paths:
+  es_1min: "data/raw/es_1min"
