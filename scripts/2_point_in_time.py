@@ -239,6 +239,39 @@ def main():
         print(f"{a.date()} -> {b.date()}: SXR8 {g_sx:.2%}/yr vs IUSA price only {g_pr:.2%}/yr "
               f"-> gap {g_sx-g_pr:.2%}/yr = dividends kept inside the Acc fund")
 
+    # ---------------------------------------------------------------- Acc fund official NAV
+    acc_dir = PROC / "ishares_acc"
+    if (acc_dir / "Storico.csv").exists():
+        section("ACC FUND (CSPX/SXR8) official NAV vs IUSA - the real Dist vs Acc gap")
+        raw = pd.read_csv(acc_dir / "Storico.csv", header=None, dtype=str)
+        raw.columns = raw.iloc[0].str.strip()
+        raw = raw.iloc[1:]
+        acc = pd.DataFrame({
+            "date": pd.to_datetime(raw["Al"], format="%d/%m/%Y", errors="coerce"),
+            "nav_usd": pd.to_numeric(raw["NAV"], errors="coerce")}).dropna().set_index("date").sort_index()
+        acc = acc[~acc.index.duplicated(keep="last")]
+        acc["nav_eur"] = acc["nav_usd"] / asof(fx, acc.index)
+        acc.to_parquet(PROC / "pit_acc_nav.parquet")
+        a, b = acc.index.min(), min(acc.index.max(), nav.index.max())
+        yrs = (b - a).days / 365.25
+        g_acc = (acc["nav_eur"].asof(b) / acc["nav_eur"].asof(a)) ** (1 / yrs) - 1
+        g_dist = (nav["nav_eur"].asof(b) / nav["nav_eur"].asof(a)) ** (1 / yrs) - 1
+        tr = nav["fund_tr_idx"] / asof(fx, nav.index)
+        g_tr = (tr.asof(b) / tr.asof(a)) ** (1 / yrs) - 1
+        print(f"Acc NAV rows {len(acc)} {a.date()} -> {acc.index.max().date()}")
+        print(f"{a.date()} -> {b.date()} ({yrs:.1f} yrs), all in EUR, NAV-to-NAV:")
+        print(f"  Acc fund NAV            {g_acc:.2%}/yr")
+        print(f"  Dist fund NAV (price)   {g_dist:.2%}/yr")
+        print(f"  Dist fund total return  {g_tr:.2%}/yr  (dividends reinvested, no tax)")
+        print(f"  -> Acc minus Dist price = {g_acc-g_dist:.2%}/yr (expected ~ dividend yield ~1.3-1.5%)")
+        print(f"  -> Acc minus Dist TR    = {g_acc-g_tr:+.2%}/yr (expected ~0: same fund, same index)")
+        if (PROC / "pit_sxr8.parquet").exists():
+            sx = pd.read_parquet(PROC / "pit_sxr8.parquet")["close"]
+            ov = pd.concat([sx, acc["nav_eur"]], axis=1, join="inner").dropna()
+            ratio = ov.iloc[:, 0] / ov.iloc[:, 1]
+            print(f"  Yahoo SXR8 / Acc NAV(EUR): first year median {ratio.iloc[:250].median():.3f}, "
+                  f"last year median {ratio.iloc[-250:].median():.3f}  (should both be ~1.00)")
+
     # ---------------------------------------------------------------- Shiller
     section(f"SHILLER with {SHILLER_LAG_MONTHS}-month lag")
     sh = pd.read_parquet(PROC / "shiller_monthly.parquet")

@@ -67,24 +67,27 @@ def parse_spreadsheetml(path: Path) -> dict:
 
 
 def do_ishares():
+    """Parses EVERY iShares file in data/raw/etf/. Dist fund -> data/processed/ishares/,
+    Acc fund -> data/processed/ishares_acc/ (never mixed, never overwritten by the other)."""
     files = sorted((RAW / "etf").glob("iShares*"))
-    section("iSHARES FUND FILE")
+    section("iSHARES FUND FILES")
     if not files:
         print("no iShares file in data/raw/etf/")
         return
-    f = files[0]
-    print("file:", f.name)
-    sheets = parse_spreadsheetml(f)
-    out = PROC / "ishares"
-    out.mkdir(parents=True, exist_ok=True)
-    for name, df in sheets.items():
-        safe = re.sub(r"[^A-Za-z0-9_-]+", "_", name or "sheet")
-        df.to_csv(out / f"{safe}.csv", index=False, header=False)
-        print(f"\n--- sheet '{name}'  shape={df.shape}  -> data/processed/ishares/{safe}.csv")
-        print(df.head(12).to_string())
-        if len(df) > 12:
-            print("  ...last 3 rows:")
-            print(df.tail(3).to_string())
+    for f in files:
+        kind = "acc" if "acc" in f.name.lower() else "dist"
+        out = PROC / ("ishares_acc" if kind == "acc" else "ishares")
+        out.mkdir(parents=True, exist_ok=True)
+        print(f"\n##### {f.name}  ->  {out.relative_to(ROOT)}/  ({kind.upper()})")
+        sheets = parse_spreadsheetml(f)
+        for name, df in sheets.items():
+            safe = re.sub(r"[^A-Za-z0-9_-]+", "_", name or "sheet")
+            df.to_csv(out / f"{safe}.csv", index=False, header=False)
+            print(f"\n--- sheet '{name}'  shape={df.shape}")
+            print(df.head(6).to_string())
+            if len(df) > 6:
+                print("  ...last 2 rows:")
+                print(df.tail(2).to_string())
 
 
 # ------------------------------------------------------------------ Shiller

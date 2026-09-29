@@ -79,3 +79,23 @@ def test_gap_down_fills_at_open():
     px, f = _toy(closes)                         # opens at 95, limit at 98.75
     e = entries(px, f, Rule("prev_close", "fixed", 0.0125))
     assert e["fill"].iloc[-1] == 95
+
+
+def test_E2_signal_uses_nothing_after_its_close():
+    """E2 may use day t's close (decision after the close), but nothing after it."""
+    px = fake_prices(n=900)
+    base_f = known_at_open_features(px)
+    for r in [r for r in default_grid() if r.ref != "open"][::9]:
+        base = entries(px, base_f, r, "E2")
+        for k in (300, 600):
+            p = scramble(px, k, include_day_k=False)
+            e = entries(p, known_at_open_features(p), r, "E2")
+            assert np.allclose(base["n"].iloc[:k + 1], e["n"].iloc[:k + 1], equal_nan=True), r.name
+
+
+def test_E2_ignores_intraday_lows():
+    """An intraday dip that recovers by the close is NOT an E2 signal."""
+    closes = [100] * 5 + [100]
+    px, f = _toy(closes, lows=[100] * 5 + [95])
+    assert entries(px, f, Rule("prev_close", "fixed", 0.0125), "E1")["n"].iloc[-1] == 1
+    assert entries(px, f, Rule("prev_close", "fixed", 0.0125), "E2")["n"].iloc[-1] == 0

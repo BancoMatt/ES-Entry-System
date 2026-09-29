@@ -22,6 +22,12 @@ RE-ENTRY RULE (only matters for high_Nd: how many buys inside one drop)
      passed since the last buy.
 For open / prev_close references every day stands alone (one possible entry per day).
 
+EXECUTION STYLE
+  E1  intraday limit: trigger = the day's LOW reaching the limit (placed at the open).
+  E2  end of day: trigger = the day's CLOSE at/below the level. The level uses only
+      closes BEFORE today; the buy happens at the NEXT day's close (engine's job).
+      'open' reference is not available in E2.
+
 State updates (re-arming) use the day's CLOSE and take effect the NEXT day.
 """
 from dataclasses import dataclass
@@ -48,7 +54,7 @@ class Rule:
         return f"{self.ref}|{t}|{extra}"
 
 
-def entries(px: pd.DataFrame, feat: pd.DataFrame, rule: Rule) -> pd.DataFrame:
+def entries(px: pd.DataFrame, feat: pd.DataFrame, rule: Rule, style: str = "E1") -> pd.DataFrame:
     """
     Returns one row per day: n (number of limit levels filled that day, 0..ladder_max),
     limit (first limit price in force at the open, NaN if no order), fill (price paid
@@ -56,6 +62,11 @@ def entries(px: pd.DataFrame, feat: pd.DataFrame, rule: Rule) -> pd.DataFrame:
     """
     o, lo, c = (px[k].to_numpy(float) for k in ("open", "low", "close"))
     idx = px.index
+    if style not in ("E1", "E2"):
+        raise ValueError(style)
+    if style == "E2" and rule.ref == "open":
+        raise ValueError("'open' reference is not defined for E2")
+    tp = lo if style == "E1" else c          # what has to reach the level
     if rule.thr_kind == "fixed":
         x = np.full(len(px), rule.thr)
     else:
@@ -68,10 +79,10 @@ def entries(px: pd.DataFrame, feat: pd.DataFrame, rule: Rule) -> pd.DataFrame:
     if rule.ref in ("open", "prev_close"):
         ref = o if rule.ref == "open" else feat["prev_close"].to_numpy(float)
         lvl = ref * (1 - x)
-        hit = lo <= lvl
+        hit = tp <= lvl
         n = hit.astype(float)
         limit = lvl
-        fill = np.where(hit, np.minimum(o, lvl), np.nan)
+        fill = np.where(hit, np.minimum(o, lvl), np.nan) if style == "E1" else np.full(len(px), np.nan)
         bad = np.isnan(lvl)
         if rule.ref == "open":
             bad |= idx < OPEN_RELIABLE_FROM
@@ -88,19 +99,19 @@ def entries(px: pd.DataFrame, feat: pd.DataFrame, rule: Rule) -> pd.DataFrame:
         if rule.reentry == "A":
             if armed:
                 limit[i] = H[i] * (1 - x[i])
-                if lo[i] <= limit[i]:
+                if tp[i] <= limit[i]:
                     n[i], fill[i], armed = 1, min(o[i], limit[i]), False
         elif rule.reentry == "C":
             if i - last_fire >= rule.cooldown:
                 limit[i] = H[i] * (1 - x[i])
-                if lo[i] <= limit[i]:
+                if tp[i] <= limit[i]:
                     n[i], fill[i], last_fire = 1, min(o[i], limit[i]), i
         elif rule.reentry == "B":
             a, xe = (H[i], x[i]) if fired == 0 else (anchor, x_ep)
             if fired < rule.ladder_max:
                 limit[i] = a * (1 - (fired + 1) * xe)
             k = fired
-            while k < rule.ladder_max and lo[i] <= a * (1 - (k + 1) * xe):
+            while k < rule.ladder_max and tp[i] <= a * (1 - (k + 1) * xe):
                 k += 1
             if k > fired:
                 if fired == 0:
@@ -108,6 +119,8 @@ def entries(px: pd.DataFrame, feat: pd.DataFrame, rule: Rule) -> pd.DataFrame:
                 n[i], fill[i], fired = k - fired, min(o[i], limit[i]), k
         else:
             raise ValueError(rule.reentry)
+        if style == "E2":
+            fill[i] = np.nan                         # E2 buys at tomorrow's close (engine)
         # end of day: a close at a new N-day high re-arms everything (effective tomorrow)
         if c[i] >= H[i]:
             armed, fired = True, 0
@@ -128,3 +141,20 @@ def default_grid():
                 rules += [Rule(ref, kind, t, "A"), Rule(ref, kind, t, "B"),
                           Rule(ref, kind, t, "C", cooldown=5), Rule(ref, kind, t, "C", cooldown=20)]
     return rules
+
+
+def frequency(px, feat, rules, style):
+    """Buys per full year for each rule (no returns). Used to build the candidate lists."""
+    rows, per_year = [], {}
+    for r in rules:
+        e = entries(px, feat, r, style)
+        valid = e["n"].notna()
+        yr = e.loc[valid, "n"].groupby(e.index[valid].year).sum()
+        cover = valid.groupby(e.index.year).mean()
+        full = yr[yr.index.isin(cover[cover > 0.9].index)]
+        per_year[r.name] = yr
+        rows.append({"rule": r.name, "ref": r.ref, "kind": r.thr_kind, "thr": r.thr,
+                     "reentry": r.reentry if r.reentry != "C" else f"C{r.cooldown}",
+                     "cooldown": r.cooldown, "years": len(full), "mean_per_yr": full.mean(),
+                     "min_yr": full.min(), "max_yr": full.max(), "zero_years": int((full == 0).sum())})
+    return pd.DataFrame(rows), pd.DataFrame(per_year)
