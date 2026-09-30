@@ -106,6 +106,8 @@ class Engine:
         self.fees = self.div_gross = self.div_tax = self.spent = 0.0
         self.contributed = 0.0
         self.pending_div = {}         # pay_i -> gross euros
+        self.wait_weighted = 0.0      # sum of (euros invested x days they waited in cash)
+        self.wait_euros = 0.0
         self.trades, self.flows = [], []
 
     # ---------------- cash helpers
@@ -120,15 +122,19 @@ class Engine:
         if amount > 0:
             self.lots.append([date, amount])
 
-    def _spend(self, amount):
+    def _spend(self, amount, today=None):
+        tol = 1e-9 * max(1.0, amount)          # float rounding scales with the amount
         amount = round(amount, 10)
-        while amount > 1e-9 and self.lots:
+        while amount > tol and self.lots:
             take = min(amount, self.lots[0][1])
+            if today is not None:
+                self.wait_weighted += take * (today - self.lots[0][0]).days
+                self.wait_euros += take
             self.lots[0][1] -= take
             amount -= take
-            if self.lots[0][1] <= 1e-9:
+            if self.lots[0][1] <= tol:
                 self.lots.pop(0)
-        if amount > 1e-6:
+        if amount > 1e-6 * max(1.0, tol * 1e9):
             raise RuntimeError("spent more cash than available")
 
     # ---------------- trading
@@ -139,7 +145,7 @@ class Engine:
             return None
         value = n * price
         fee = self.cost.fee(value)
-        self._spend(value + fee)
+        self._spend(value + fee, self.dates[i])
         self.shares += n
         self.cost_basis += value + fee
         self.fees += fee
@@ -191,6 +197,7 @@ class Engine:
                       "div_tax": self.div_tax, "fees": self.fees, "spent_on_shares": self.spent,
                       "cost_basis": self.cost_basis, "cash_end": self.cash,
                       "shares_end": self.shares, "value_end": float(daily["value"].iloc[-1]),
+                      "avg_wait_days": self.wait_weighted / self.wait_euros if self.wait_euros else 0.0,
                       "end_date": self.dates[-1]}
         return res
 

@@ -53,6 +53,7 @@ def summarize(res, cost) -> dict:
         "fees_pct_of_contrib": tot["fees"] / tot["contributed"],
         "div_tax": tot["div_tax"],
         "avg_cash_pct": float((daily["cash"] / daily["value"]).where(daily["value"] > 0).mean()),
+        "avg_wait_days": tot.get("avg_wait_days", np.nan),
         "max_drawdown": float(dd),
         "n_buys": len(tr),
         "avg_order_eur": float(tr["value"].mean()) if len(tr) else 0.0,

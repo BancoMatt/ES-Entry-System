@@ -10,7 +10,13 @@ MonthlyDCA   buys on day `d` of every month (first trading day on/after d).
              Money still arrives quarterly, so each buy spends an equal share of what's
              left until the next contribution: 1st buy = cash/3, 2nd = cash/2, 3rd = all.
              That also sweeps up rounding leftovers and dividends.
+
+PerfectTimingCeiling   NOT A STRATEGY. Uses hindsight: invests each quarter's cash at that
+             quarter's LOWEST close. No rule can do better by timing within the quarter,
+             so it's the ceiling for "how much edge was even possible". Descriptive only,
+             never selectable (logged in notes/decisions.md).
 """
+import numpy as np
 import pandas as pd
 
 from src.engine import MOC, Policy
@@ -49,3 +55,17 @@ class MonthlyDCA(Policy):
     def on_close(self, eng, i):
         k = self.split.get(i)
         return [MOC(eng.cash / k, "dca")] if k else []
+
+
+class PerfectTimingCeiling(Policy):
+    name = "ceiling_perfect_timing"          # HINDSIGHT - reference line only
+
+    def setup(self, eng):
+        contrib = sorted(eng.dates.get_loc(d) for d in eng.contrib)
+        bounds = contrib + [len(eng.dates)]
+        self.buy_days = set()
+        for a, b in zip(bounds[:-1], bounds[1:]):
+            self.buy_days.add(a + int(np.argmin(eng.c[a:b])))
+
+    def on_close(self, eng, i):
+        return [MOC(eng.cash, "ceiling")] if i in self.buy_days else []
