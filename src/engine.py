@@ -191,6 +191,10 @@ class Engine:
             self.policy.after_close(self, i, filled)
             cash = self.cash
             rows.append((d, self.shares, cash, self.shares * self.c[i] + cash, self.contributed))
+        # cash never invested counts as having waited until the last day
+        for d0, a in self.lots:
+            self.wait_weighted += a * (self.dates[-1] - d0).days
+            self.wait_euros += a
         daily = pd.DataFrame(rows, columns=["date", "shares", "cash", "value", "contributed"]).set_index("date")
         res = Result(self.policy.name, daily, pd.DataFrame(self.trades), list(self.flows))
         res.totals = {"contributed": self.contributed, "div_gross": self.div_gross,

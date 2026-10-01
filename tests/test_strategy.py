@@ -123,3 +123,12 @@ def test_pieces_size_orders():
               DipStrategy(Rule("prev_close", "fixed", 0.005), "E1", pieces=2, trade_through=0.0), cost=cm)
     dips = res.trades[res.trades["tag"] == "dip"]
     assert dips["value"].max() <= 250 + 1e-6
+
+
+def test_never_invested_cash_counts_as_waiting_until_the_end():
+    """A rule that never buys (no deadline) must show a huge average wait, not ~0."""
+    px = _px()
+    never = Rule("high_20d", "fixed", 0.50, "A")
+    res = run(px, NO_DIST, px.index[60], px.index[-1], DipStrategy(never, "E1", 1, "none"))
+    span = (px.index[-1] - px.index[60]).days
+    assert res.totals["avg_wait_days"] > span / 3          # money waited roughly half the period on average
