@@ -32,7 +32,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from src import plots                                                       # noqa: E402
 from src.benchmarks import BuyHold, MonthlyDCA                             # noqa: E402
-from src.costs import IBKR_TIERED                                           # noqa: E402
+from src.costs import IBKR_TIERED, with_fractional                                           # noqa: E402
 from src.data import PROC, load_post_holdout                                # noqa: E402
 from src.engine import run                                                  # noqa: E402
 from src.metrics import summarize, xirr                                     # noqa: E402
@@ -158,7 +158,9 @@ def main():
     for name, make in pols:
         for fund, bars, dv, cost in [("Dist", D, dist, COST), ("Acc", A, NO_DIST, COST),
                                      ("Dist, no dividend tax", D, dist, NO_DIV_TAX),
-                                     ("Dist (IUSA market close)", M, dist, COST)]:
+                                     ("Dist (IUSA market close)", M, dist, COST),
+                                     ("Dist, fractional shares", D, dist, with_fractional(COST)),
+                                     ("Acc, fractional shares", A, NO_DIST, with_fractional(COST))]:
             m, res = one(bars, dv, start, end, make(), cost)
             m.update({"strategy": name, "fund": fund})
             rows.append(m)
@@ -214,7 +216,7 @@ def main():
                   f"(vs Dist {100 * (r['xirr_after_sell'] - base['xirr_after_sell']):+.2f}) | "
                   f"final EUR {r['final_value']:,.0f} -> after sell {r['value_after_sell']:,.0f} | "
                   f"div tax {r['div_tax']:,.0f} + tax at sale {r['cgt_at_sale']:,.0f} = {r['total_tax']:,.0f} | "
-                  f"fees {r['fees']:,.0f}")
+                  f"fees {r['fees']:,.0f} | buys {r['n_buys']} | avg cash {r['avg_cash_pct']:.2%}")
     q = A_df[A_df["strategy"] == "quarterly B&H"].set_index("fund")
     section("PART B  where the gap comes from (quarterly B&H, pts/yr)")
     tax = q.loc["Dist, no dividend tax", "xirr_before_sell"] - q.loc["Dist", "xirr_before_sell"]
@@ -224,6 +226,11 @@ def main():
           f"+ fund level & reinvestment delay {100 * fund:+.2f}")
     print(f"  if you sell at the end: Acc {100 * after:+.2f}  (smaller: the Dist investor's taxed dividends raised his cost")
     print("                          basis, so he pays less tax at the sale. What's left = the value of paying tax LATER)")
+    fr = q.loc["Acc, fractional shares", "xirr_after_sell"] - q.loc["Dist, fractional shares", "xirr_after_sell"]
+    frh = q.loc["Acc, fractional shares", "xirr_before_sell"] - q.loc["Dist, fractional shares", "xirr_before_sell"]
+    print(f"  with fractional shares: Acc {100 * frh:+.2f} keep holding | {100 * fr:+.2f} sold at the end "
+          f"(whole shares cost Acc {100 * (frh - (tax + fund)):+.2f} pts/yr: one Acc share costs about "
+          f"EUR {A['close'].iloc[-1]:,.0f} today vs EUR {D['close'].iloc[-1]:,.0f} for Dist)")
     section("PART C  holding period: Acc minus Dist, XIRR after selling at the end (pts/yr)")
     for H, g in R.groupby("horizon"):
         a = g["gap_after_sell"] * 100
