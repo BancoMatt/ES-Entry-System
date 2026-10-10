@@ -38,3 +38,5 @@ required discount per euro ≈ mu x (W / 365) + extra fee %
 
 
 13. I believe that (before reading any result) lump sum B&H once a year will beat quarterly B&H and all of the other strategies, probably just thanks to timing during rough years, and lower cash drag compared to DCA, buy the dip etc...
+
+14. before running 9_holdout.py, I believe that quarterly B&H will beat monthly DCA, mostly due to lower cashdrag and lower fees (less entries), I would say that about half of the configs beat B&H (guess), quarterly B&H beats yearly B&H though they will be close, in my opinion.

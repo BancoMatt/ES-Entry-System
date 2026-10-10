@@ -10,3 +10,5 @@
   (c) PBO performance per block = mean daily time-weighted return in excess of Buy & Hold;
   (d) finalist types are A, B, C as written; daily-reference rules ("-") have no re-entry type and are reported but not selectable;
   (e) bug fix: avg_wait_days now counts never-invested cash as waiting until the last day (XIRR results unaffected; grid re-run).
+
+- 2026-10-10 amendment (before opening): the holdout also shows the yearly hindsight line (yearly money at each year's lowest close) next to yearly B&H. Descriptive only.
