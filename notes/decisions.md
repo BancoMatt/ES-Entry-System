@@ -37,3 +37,21 @@
      fig01-style histogram). No configuration is selected, ranked or promoted from the holdout grid.
    Success criterion unchanged (§10). Anything run after the holdout is labelled `post-holdout`
    (e.g. repeating the calendar curiosity on 1999 to today).
+
+2026-10-10: study 07 Dist vs Acc (POST-HOLDOUT, exploratory; written BEFORE running)
+Script: scripts/10_dist_vs_acc.py. Data via src/data.py load_post_holdout() (full history, locked until notes/holdout_results.md exists; not logged as a holdout opening).
+Funds: IUSA (Dist) vs CSPX/SXR8 (Acc), both priced from their OFFICIAL NAV in EUR (ECB fix) on the same days. Official period = Acc launch 2010-05-19 to the last NAV day. Also Dist priced from the IUSA market close, as a consistency check.
+Strategies: quarterly B&H (main), monthly DCA, E2 reference config. EUR 500/quarter, IBKR Tiered, whole shares. Dist: 26% tax on each dividend at payment. Acc: no tax until sale. Both: 26% on the gain if sold. IVAFE (0.2%/yr, same for both) ignored.
+Split of the gap (keep holding): dividend tax drag = Dist with no dividend tax - Dist; fund level + reinvestment delay = Acc - Dist with no dividend tax.
+Holding period: rolling windows, a new start each quarter, 5/10/15/20 years, sold at the end. Before 2010-05-19 the Acc price is the Dist fund's official total-return index (EUR), spliced at launch; those windows are marked "proxy".
+Accounting fix for this study: dividends already earned (ex-date passed) but not yet paid are counted in the Dist account value. The engine credits them on the pay date; that is neutral when every policy holds the same fund (all earlier studies) but would bias a Dist vs Acc comparison.
+
+2026-10-10: study 11 crash playbook (POST-HOLDOUT, exploratory; written BEFORE running)
+
+Question: I invest EUR 500 every quarter (quarterly B&H). A crash comes. What should I do? Script: scripts/11_crash_playbook.py, policies in src/crash.py. Data via load_post_holdout(). IUSA (Dist), whole shares, IBKR Tiered, as in the main study. Scored on XIRR AFTER selling at the end vs plain quarterly B&H on the same period. Periods: 1999-2026, plus separate starts 1999-2008, 2009-2018, 2019-2026. Drawdown = close vs the highest close so far (all history). Decided at the close of day t, acted on at the close of day t+1.
+
+Engine additions (all off unless used; tests/test_engine_debt_sell.py): Sell orders (fee, 26% tax on the realised gain at average cost, no credit for losses), debt (borrow, repay, repay-from-contributions, daily interest at a rate series), final value net of debt, full accounting identity checked on every run.
+
+A behaviour: pause buying at -20%, restart at -10% / at a new high; panic-sell everything at -20%, buy back at -10% / at a new high. B front-loading: at -X% (10/15/20/25/30/40) invest the next N quarters (1/2/4/8) now, borrowed from the emergency fund, repaid by the next contributions. One-shot per crash (re-armed at a new high) or ladder (another N at every further -10%). Max 8 quarters outstanding. Emergency fund in plain cash (0%) or in a deposit paying the ECB deposit rate (floored at 0%), where the interest it would have earned counts as a cost. C placebo: every front-load config (1999-2026, plain cash) re-run 200x with the same number of front-loads on random days (seed 2026). Reported as the percentile of random runs beaten. R reserve control line: 10% of each contribution kept in cash, all invested at -20%. D credit line, big investor: EUR 1M lump sum, no salary, dividends reinvested above EUR 1,000 cash. At -X% (15/20/30) borrow f (10/20%) of net worth and buy, only if the loan stays <= 30% of the portfolio; interest = ECB deposit rate + 1.5% (floored at 0). Repay at the next all-time high by selling (taxed), or carry the loan to the end. Margin call: if the loan exceeds 50% of the portfolio, forced sale back to 40%.
+
+Representative configs, fixed now for the per-crash tables and charts: front-load -20%, N = 4, one-shot, plain cash | credit line -20%, borrow 20% (both repay modes).

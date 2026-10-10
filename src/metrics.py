@@ -32,12 +32,14 @@ def xirr(flows):
 
 def summarize(res, cost) -> dict:
     tot, daily = res.totals, res.daily
-    end, v_end = tot["end_date"], tot["value_end"]
-    gain = v_end - tot["cash_end"] - tot["cost_basis"]
+    debt_end = tot.get("debt_end", 0.0)
+    end, v_end = tot["end_date"], tot["value_end"] - debt_end           # NET of any debt left
+    gain = tot["value_end"] - tot["cash_end"] - tot["cost_basis"]       # shares value - cost basis
     v_after = v_end - max(gain, 0.0) * cost.cgt
+    net = daily["value"] - (daily["debt"] if "debt" in daily else 0.0)
     ext = daily["contributed"].diff().fillna(daily["contributed"])
-    prev = daily["value"].shift(1)
-    r = ((daily["value"] - ext) / prev - 1).where(prev > 0).fillna(0.0)
+    prev = net.shift(1)
+    r = ((net - ext) / prev - 1).where(prev > 0).fillna(0.0)
     twr = (1 + r).cumprod()
     dd = (twr / twr.cummax() - 1).min()
     tr = res.trades
@@ -59,4 +61,8 @@ def summarize(res, cost) -> dict:
         "avg_order_eur": float(tr["value"].mean()) if len(tr) else 0.0,
         "avg_price_paid": float(tr["value"].sum() / tr["shares"].sum()) if len(tr) else np.nan,
         "cost_model": cost.name,
+        "debt_end": debt_end,
+        "interest_paid": tot.get("interest", 0.0),
+        "borrowed": tot.get("borrowed", 0.0),
+        "tax_paid_on_sales": tot.get("cgt_paid", 0.0),
     }
