@@ -3,7 +3,6 @@ __pycache__/
 *.pyc
 data/
 results/
-figures/
 .ipynb_checkpoints/
 raw/
 *.parquet
