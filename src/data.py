@@ -55,3 +55,14 @@ def load(period: str, holdout: bool = False):
     if period == "holdout":
         _log_unlock(period)
     return px, dist, pd.Timestamp(start), end
+
+
+def load_post_holdout():
+    """Full history (1999 -> last day) for studies run AFTER the one-time holdout.
+    Everything produced with it is labelled post-holdout / exploratory.
+    Locked until the holdout has been run (notes/holdout_results.md exists)."""
+    if not (ROOT / "notes" / "holdout_results.md").exists():
+        raise PermissionError("The holdout hasn't been run yet: post-holdout studies are locked.")
+    px = pd.read_parquet(PROC / "pit_prices.parquet")
+    dist = pd.read_parquet(PROC / "pit_distributions.parquet")
+    return px, dist
