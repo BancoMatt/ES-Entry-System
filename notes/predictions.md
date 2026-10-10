@@ -35,3 +35,6 @@ required discount per euro ≈ mu x (W / 365) + extra fee %
 10. The dip strategy will get to about half of the perfect timing ceiling (probably even less, about 30%) during major crashes like covid, 2008, 2000s, the rest of the time it will have higher entries than B&H.
 11. more confluences will probably just create less entries and worse ones, leading to more cash drag and worse overall performance.
 12. the strategy will be positive but just won't perform against B&H.
+
+
+13. I believe that (before reading any result) lump sum B&H once a year will beat quarterly B&H and all of the other strategies, probably just thanks to timing during rough years, and lower cash drag compared to DCA, buy the dip etc...
