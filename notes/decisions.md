@@ -77,3 +77,22 @@ Pre-registered (§11): each overlay is reported as the EXTRA XIRR over the same 
 Bases: monthly DCA (pre-registered) and the E2 reference dip rule (pre-registered "reference strategy"). ADDED, not pre-registered: quarterly B&H, the main benchmark. E1 reference skipped: intraday data before 2009 isn't reliable and limit orders don't map onto the value pot.
 Periods: 1999-2026 (main), plus separate starts 1999-2008, 2009-2018, 2019-2026 (same end/start caveat as study 11).
 Descriptive check of the signals themselves: IUSA total return (EUR) over the next 1 and 3 years after each day, grouped by signal state. Overlapping windows, so day counts overstate the number of independent observations.
+
+2026-10-11: study 09 leverage (POST-HOLDOUT, curiosity; written BEFORE running)
+
+Script: scripts/13_leverage.py, policies in src/leverage.py (tests/test_leverage.py). EUR 500/quarter in IUSA, IBKR Tiered. Three separate starts: 2000, 2010, 2020 -> last day. Leverage L: 1x (= quarterly B&H, the reference), 1.2, 1.5, 2, 3, 4, 5, 10. Matt's spec.
+
+Model 1, margin loan (main):
+
+Target leverage, re-set on every contribution day: borrow and buy after gains, sell (26% tax on any gain) and repay after losses. Idle cash (dividends, rounding) repays the loan.
+Interest: ECB deposit rate + 1.5%, floored at 0. Whole shares.
+Margin call when equity / position < min(25%, half the starting margin): 25% for 1.2-2x, 16.7% 3x, 12.5% 4x, 10% 5x, 5% 10x. Checked on every close.
+Matt's rule: a margin call ends the scenario at ZERO (the forced sale's leftover is reported but counted as lost).
+Reality note: a normal margin account allows about 2x; 3-4x needs portfolio margin; 5x and 10x are futures/CFD territory.
+
+Model 2, daily-reset leveraged ETF (pre-registered §11):
+
+daily return = L x r - (L-1) x (ECB rate + 0.5%)/252 - 0.6%/252, r = IUSA total return.
+A day with L x r <= -100% wipes the fund out (ends at zero). Fractional shares (a decayed fund can trade below a cent). Quarterly B&H into the fund.
+
+Outputs: final net worth, x vs 1x, XIRR before/after selling, max drawdown, bust date, interest paid, peak leverage reached. Charts: one panel per start, all leverages, X at the bust date.
