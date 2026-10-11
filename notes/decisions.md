@@ -55,3 +55,13 @@ Engine additions (all off unless used; tests/test_engine_debt_sell.py): Sell ord
 A behaviour: pause buying at -20%, restart at -10% / at a new high; panic-sell everything at -20%, buy back at -10% / at a new high. B front-loading: at -X% (10/15/20/25/30/40) invest the next N quarters (1/2/4/8) now, borrowed from the emergency fund, repaid by the next contributions. One-shot per crash (re-armed at a new high) or ladder (another N at every further -10%). Max 8 quarters outstanding. Emergency fund in plain cash (0%) or in a deposit paying the ECB deposit rate (floored at 0%), where the interest it would have earned counts as a cost. C placebo: every front-load config (1999-2026, plain cash) re-run 200x with the same number of front-loads on random days (seed 2026). Reported as the percentile of random runs beaten. R reserve control line: 10% of each contribution kept in cash, all invested at -20%. D credit line, big investor: EUR 1M lump sum, no salary, dividends reinvested above EUR 1,000 cash. At -X% (15/20/30) borrow f (10/20%) of net worth and buy, only if the loan stays <= 30% of the portfolio; interest = ECB deposit rate + 1.5% (floored at 0). Repay at the next all-time high by selling (taxed), or carry the loan to the end. Margin call: if the loan exceeds 50% of the portfolio, forced sale back to 40%.
 
 Representative configs, fixed now for the per-crash tables and charts: front-load -20%, N = 4, one-shot, plain cash | credit line -20%, borrow 20% (both repay modes).
+
+2026-10-11: study 11b, out-of-sample check of the -15% front-load (written BEFORE running)
+
+Why: in study 11 the -15% trigger was the only blue row in fig19 (beats 70-88% of random dates). It was noticed AFTER seeing the data, so it is tested on data it never saw.
+
+Data: Shiller monthly S&P 500, 1871-01 to 1998-12 (before our 1999+ sample). USD.
+Same rules as study 11 where possible: USD 500 per quarter (Jan/Apr/Jul/Oct), drawdown vs the highest price so far, front-load at -15%, N = 1/2/4/8 quarters, borrowed from the emergency fund at 0%, repaid by skipping the next contributions, one-shot per crash (re-arm at a new high), max 8 quarters outstanding. Decided on month t, invested at month t+1.
+Placebo: same number of front-loads on random months, 200 per size, seed 2026.
+Simplifications (identical for every line): Shiller P = monthly AVERAGE price, dividends D/12 reinvested monthly, 0.1% cost per buy, no taxes, contributions fixed at USD 500 nominal.
+SUCCESS (pre-registered): the crash-timed version beats >= 90% of random dates in at least 3 of the 4 sizes over 1871-1998. Otherwise the study 11 result is treated as luck.
