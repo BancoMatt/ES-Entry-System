@@ -14,7 +14,6 @@ required discount per euro ≈ mu x (W / 365) + extra fee %
 - per-euro loss -> XIRR gap ≈ loss / average years the money stays invested (~10 in E2, ~5 in E1)
 - check: E2 DCA, W ~30 days, mu 7% -> 0.58% + 0.62% = 1.2% per euro / 10 ≈ 0.12 pts/yr = measured 0.12
 
-## Claude's predictions
 1. Most of the 12,720 configurations lose to Buy & Hold; median around -0.3 to -0.8 pts/yr.
 2. E1 does worse than E2 (the 2009-2018 bull market makes waiting expensive).
 3. More pieces lose more; "no deadline" loses most.
@@ -22,14 +21,13 @@ required discount per euro ≈ mu x (W / 365) + extra fee %
 5. The best configurations capture at most ~20-30% of the perfect-timing ceiling.
 6. EMA and value overlays (study 10) add little or nothing.
 
-## Matt's predictions
-1. Will anything beat Buy & Hold? (yes / no, how many roughly?)
-2. E1 or E2 better?
-3. Which re-entry type (A / B / C) does best?
-4. Which reference (5 / 10 / 20 / 50-day high) does best?
-5. How many pieces work best (1 / 2 / 3 / 4)?
-6. Does the deadline help?
-7. Anything else you expect:
+1. Will anything beat Buy & Hold? no
+2. E1 or E2 better? E2
+3. 
+4. Which reference (5 / 10 / 20 / 50-day high) does best? 5-10
+5. 
+6. 
+7.
 8. Most of the parameters will most likely fail against B&H.
 9. The trending section (2009-2018) will perform worse than the whole period from 1999 and lots of cash drag will take place, and many entries will take place only because of the 30-60 days max cash drag rule.
 10. The dip strategy will get to about half of the perfect timing ceiling (probably even less, about 30%) during major crashes like covid, 2008, 2000s, the rest of the time it will have higher entries than B&H.
