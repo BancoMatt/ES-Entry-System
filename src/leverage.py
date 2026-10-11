@@ -86,3 +86,10 @@ def letf_prices(px, dist, L, rate, start, end):
     wipe = R.index[dead.argmax()] if dead.any() else None
     price = 100 * (1 + R.clip(lower=-1)).cumprod()
     return price, wipe
+
+
+def closure_date(price, max_loss=0.90):
+    """POST-HOC SENSITIVITY: first day the fund is >= 90% below its own peak. Real issuers close
+    leveraged products after collapses like that; investors get what's left in cash."""
+    hit = price / price.cummax() - 1 <= -max_loss
+    return price.index[hit.argmax()] if hit.any() else None

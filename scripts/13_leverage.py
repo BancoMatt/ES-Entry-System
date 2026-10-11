@@ -21,8 +21,8 @@ from src.benchmarks import BuyHold                              # noqa: E402
 from src.costs import IBKR_TIERED, with_fractional                               # noqa: E402
 from src.data import load_post_holdout                          # noqa: E402
 from src.engine import Engine                                   # noqa: E402
-from src.leverage import LeverageTarget, letf_prices, maintenance  # noqa: E402
-from src.metrics import summarize                               # noqa: E402
+from src.leverage import LeverageTarget, closure_date, letf_prices, maintenance  # noqa: E402
+from src.metrics import summarize, xirr                               # noqa: E402
 
 OUT = ROOT / "results" / "13_leverage"
 FIG = ROOT / "figures"
@@ -94,15 +94,32 @@ def main():
                          "residual_at_call": np.nan, "max_leverage_seen": L, "interest_paid": np.nan,
                          "tax_on_rebalancing": 0.0, "margin_call_level": np.nan})
             paths[("leveraged ETF", sk, L)] = (v2, wipe)
+            # ---- post-hoc sensitivity: fund closed once it is 90% below its peak, investor keeps the rest as cash
+            cd = closure_date(price.loc[:stop])
+            if cd is None:
+                rows.append({**rows[-1], "model": "leveraged ETF, closed at -90%", "busted": None})
+                paths[("leveraged ETF, closed at -90%", sk, L)] = (v2, None)
+            else:
+                e3 = Engine(bars(price.loc[:cd]), NO_DIST, start, cd, BuyHold(), cost=with_fractional(COST))
+                r3 = e3.run()
+                left = r3.totals["value_end"]
+                rows.append({"model": "leveraged ETF, closed at -90%", "start": sk, "L": L, "busted": cd.date(),
+                             "final_net_worth": left, "after_sell": left, "contributed": r3.totals["contributed"],
+                             "xirr_before_sell": xirr(r3.flows + [(end, left)]), "xirr_after_sell": xirr(r3.flows + [(end, left)]),
+                             "max_drawdown": -0.9, "residual_at_call": left, "max_leverage_seen": L,
+                             "interest_paid": np.nan, "tax_on_rebalancing": 0.0, "margin_call_level": np.nan})
+                paths[("leveraged ETF, closed at -90%", sk, L)] = (r3.daily["value"], cd)
     df = pd.DataFrame(rows)
     df["study"] = "09_leverage"
     df.to_csv(OUT / "runs.csv", index=False)
 
     line = "=" * 78
     print(f"\n{line}\nSTUDY 09 leverage (POST-HOLDOUT, curiosity). EUR 500/quarter, IUSA, IBKR Tiered\n{line}")
-    for model in ("margin loan", "leveraged ETF"):
-        print(f"\n{model.upper()}" + ("  (re-set to L every quarter, ECB rate + 1.5%, margin call = zero)" if model == "margin loan"
-                                     else "  (daily reset, pre-registered formula, a bad enough day = zero)"))
+    heads = {"margin loan": "  (re-set to L every quarter, ECB rate + 1.5%, margin call = zero)",
+             "leveraged ETF": "  (daily reset, pre-registered formula, a bad enough day = zero)",
+             "leveraged ETF, closed at -90%": "  (POST-HOC SENSITIVITY: fund closed 90% below its peak, investor keeps the rest in cash)"}
+    for model in heads:
+        print(f"\n{model.upper()}" + heads[model])
         for sk in STARTS:
             t = df[(df["model"] == model) & (df["start"] == sk)]
             base = t[t["L"] == 1.0].iloc[0]
@@ -111,7 +128,10 @@ def main():
             for _, r in t.iterrows():
                 if r["L"] == 1.0:
                     continue
-                if r["busted"] is not None:
+                if r["busted"] is not None and model.endswith("-90%"):
+                    print(f"    {r['L']:>4g}x  CLOSED {r['busted']}  after putting in EUR {r['contributed']:,.0f} | "
+                          f"investor got back EUR {r['final_net_worth']:,.0f} | x{r['final_net_worth'] / base['final_net_worth']:.2f} vs 1x")
+                elif r["busted"] is not None:
                     extra = (f" | forced sale left EUR {r['residual_at_call']:,.0f}, counted as 0"
                              if model == "margin loan" else "")
                     print(f"    {r['L']:>4g}x  BUSTED {r['busted']}  after putting in EUR {r['contributed']:,.0f}{extra}")
@@ -149,7 +169,7 @@ def charts(df, paths):
                     lab = f"{L:g}x  EUR {r['final_net_worth']:,.0f}"
                 ends.append((s.values[-1], lab, cols[L], s.index[-1], bust is not None))
             ax.set_yscale("log")
-            ax.yaxis.set_major_formatter(plt.matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:,.0f}"))
+            ax.yaxis.set_major_formatter(plt.matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:,.0f}" if v >= 1 else f"{v:g}"))
             ylo, yhi = (np.log10(v) for v in ax.get_ylim())
             gap = 0.045 * (yhi - ylo)
             alive = sorted([e for e in ends if not e[4]], key=lambda e: e[0])
@@ -160,6 +180,11 @@ def charts(df, paths):
                 last = y
             for (v, lab, c, x, _), y in zip(alive, ys):
                 ax.text(x, 10 ** y, f"  {lab}", color=c, fontsize=7.5, va="center")
+            if model == "leveraged ETF":
+                for L in LEVELS:
+                    s3, cd = paths[("leveraged ETF, closed at -90%", sk, L)]
+                    if cd is not None:
+                        ax.plot([cd], [s3.values[-1]], marker="o", mfc="none", color=cols[L], markersize=8, mew=1.5)
             for k, (v, lab, c, x, b) in enumerate([e for e in ends if e[4]]):
                 ax.annotate(lab, (x, v), textcoords="offset points", xytext=(6, -10 - 11 * (k % 3)), fontsize=7, color=c)
             first = min(paths[(model, sk, 1.0)][0].index)
@@ -174,7 +199,8 @@ def charts(df, paths):
         fig.tight_layout()
         plots.note(fig, ("Re-set to the target leverage every quarter, ECB rate + 1.5%. X = margin call (equity below min(25%, half the "
                          "starting margin)), counted as zero." if model == "margin loan" else
-                         "Daily reset: L x daily return - (L-1) x (ECB rate + 0.5%) - 0.6% fee per year. X = a day that wiped the fund out."))
+                         "Daily reset: L x daily return - (L-1) x (ECB rate + 0.5%) - 0.6% fee per year. X = a day that wiped the fund out. "
+                         "O = the fund is 90% below its peak (where a real issuer would likely close it)."))
         plots.save(fig, FIG / fname)
 
 
