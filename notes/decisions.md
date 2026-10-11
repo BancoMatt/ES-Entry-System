@@ -65,3 +65,15 @@ Same rules as study 11 where possible: USD 500 per quarter (Jan/Apr/Jul/Oct), dr
 Placebo: same number of front-loads on random months, 200 per size, seed 2026.
 Simplifications (identical for every line): Shiller P = monthly AVERAGE price, dividends D/12 reinvested monthly, 0.1% cost per buy, no taxes, contributions fixed at USD 500 nominal.
 SUCCESS (pre-registered): the crash-timed version beats >= 90% of random dates in at least 3 of the 4 sizes over 1871-1998. Otherwise the study 11 result is treated as luck.
+
+2026-10-11: study 10 trend + value overlays (POST-HOLDOUT, exploratory; written BEFORE running)
+
+Script: scripts/12_overlays.py, overlays in src/overlays.py (tests/test_overlays.py, incl. a look-ahead test of the value signal). Data via load_post_holdout(). IUSA (Dist), whole shares, IBKR Tiered, EUR 500/quarter, as in the main study.
+
+Pre-registered (§11): each overlay is reported as the EXTRA XIRR over the same setup without it.
+
+10a trend: buy only if yesterday's close > its 200-day EMA; and the opposite (only below). A skipped buy leaves the cash waiting for the next buy day that qualifies.
+10b value sizing, Matt's formula on the S&P 500 (USD): EPS = Shiller E with 6-month lag, g = 10y EPS growth capped [0%, 10%], M = median P/E of the prior 120 months (lagged), P = S&P close of the previous day, d = lagged Shiller dividends / P, e = (EPS x (1+g)^10 x M / P)^(1/10) - 1 + d, r = 10y US yield (previous close) + 5%. Order size x1.5 if e - r >= +1%, x1 in between, x0.5 if e - r <= -1%. The unspent half goes into a saved pot; the extra half when cheap comes only from that pot.
+Bases: monthly DCA (pre-registered) and the E2 reference dip rule (pre-registered "reference strategy"). ADDED, not pre-registered: quarterly B&H, the main benchmark. E1 reference skipped: intraday data before 2009 isn't reliable and limit orders don't map onto the value pot.
+Periods: 1999-2026 (main), plus separate starts 1999-2008, 2009-2018, 2019-2026 (same end/start caveat as study 11).
+Descriptive check of the signals themselves: IUSA total return (EUR) over the next 1 and 3 years after each day, grouped by signal state. Overlapping windows, so day counts overstate the number of independent observations.
